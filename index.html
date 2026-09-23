@@ -44,10 +44,10 @@
   var CSS = [
     'html.__locked, html.__locked body { overflow: hidden !important; }',
     'html.__locked body > *:not(#__gate) { display: none !important; }',
-    '#__gate { position: fixed; inset: 0; z-index: 2147483647; background: #0F120A;',
+    '#__gate { position: fixed; inset: 0; z-index: 2147483647; background: #0F120A; overflow: hidden;',
     '  display: flex; align-items: center; justify-content: center; padding: 24px;',
     "  font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }",
-    '#__gate .b { width: 100%; max-width: 420px; }',
+    '#__gate .b { position: relative; z-index: 1; width: 100%; max-width: 420px; }',
     '#__gate .k { margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: .14em;',
     '  text-transform: uppercase; color: #9AA08C; }',
     '#__gate h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.1; font-weight: 800; color: #fff; }',
@@ -63,10 +63,29 @@
     '  font-family: inherit; cursor: pointer; }',
     '#__gate button:hover { background: #5f6242; }',
     '#__gate .e { margin: 12px 0 0; font-size: 13px; color: #E8A0A0; min-height: 18px; }',
-    '#__gate .f { margin: 40px 0 0; font-size: 12px; line-height: 1.5; color: #6E7365; }'
+    '#__gate .f { margin: 40px 0 0; font-size: 12px; line-height: 1.5; color: #6E7365; }',
+    /* Meteor shower. Ported from UI Thing's "Meteors" goodie
+       (uithing.com/goodies/meteors), which credits Magic UI for the idea.
+       Theirs is a Vue + Tailwind component; this is the same geometry and
+       timing written as plain CSS so it can live in the gate's style block. */
+    '@keyframes __meteor {',
+    '  0%   { transform: rotate(var(--angle)) translateX(0);       opacity: 1; }',
+    '  70%  { opacity: 1; }',
+    '  100% { transform: rotate(var(--angle)) translateX(var(--dist)); opacity: 0; } }',
+    '#__gate .mx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }',
+    '#__gate .m { position: absolute; width: 2px; height: 2px; border-radius: 9999px;',
+    '  background: #71717a; box-shadow: 0 0 0 1px rgba(255,255,255,.06);',
+    '  animation-name: __meteor; animation-timing-function: linear;',
+    '  animation-iteration-count: infinite; }',
+    /* the trail, drawn from the head and rotating with it */
+    '#__gate .m::after { content: \'\'; position: absolute; top: 50%; left: 0;',
+    '  width: 50px; height: 1px; transform: translateY(-50%);',
+    '  background: linear-gradient(to right, #71717a, transparent); }',
+    '@media (prefers-reduced-motion: reduce) { #__gate .mx { display: none; } }'
   ].join('\n');
 
   var HTML =
+    '<div class="mx" aria-hidden="true"></div>' +
     '<div class="b">' +
       '<p class="k">Trail Runner &middot; Outside</p>' +
       '<h1>Homepage Proto</h1>' +
@@ -79,6 +98,31 @@
       '<p class="e" role="alert"></p>' +
       '<p class="f">Work in progress, shared for review. Not for distribution.</p>' +
     '</div>';
+
+  /* 20 meteors: 0.2-1.2s delay, 2-9s duration, percentage lefts so a resize
+     needs no rebuild. Angle is +215deg, not UI Thing's -215deg: negating it
+     sends the meteors up and off the top edge from their -5% start, so they
+     are never seen. +215deg is Magic UI's original and falls down-right.
+     Travel distance is randomised 60-200vh rather than fixed at 500px: one fixed
+     pixel distance drops every meteor in the top quarter, which reads as a band
+     rather than a background. vh keeps that true at any window height (the fall
+     is distance x sin(215deg), so 60-200vh covers 0.34-1.15 screens). Lefts
+     start as far as -50% because the fall drifts right about 1.4x faster than
+     down, so a meteor only reaches the lower screen if it begins off the left
+     edge; starting them all on-screen leaves the bottom bare. */
+  function meteors(gate) {
+    var box = gate.querySelector('.mx');
+    if (!box) return;
+    var out = '';
+    for (var i = 0; i < 20; i++) {
+      out += '<span class="m" style="--angle:215deg; top:-5%;'
+           + '--dist:' + -Math.round(Math.random() * 140 + 60) + 'vh;'
+           + 'left:' + (Math.random() * 150 - 50).toFixed(2) + '%;'
+           + 'animation-delay:' + (Math.random() * 1 + 0.2).toFixed(2) + 's;'
+           + 'animation-duration:' + Math.floor(Math.random() * 8 + 2) + 's"></span>';
+    }
+    box.innerHTML = out;
+  }
 
   var unlocked = false;
 
@@ -128,6 +172,7 @@
       g.id = '__gate';
       g.innerHTML = HTML;
       document.body.appendChild(g);
+      meteors(g);
       wire(g);
     }
   }
